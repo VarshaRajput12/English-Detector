@@ -1,12 +1,26 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
 
 const app = express();
 app.use(cors()); // dev: allow all origins
 app.use(express.json());
+
+
+// Serve frontend build
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use(express.static(path.join(__dirname, "dist"))); // Vite build folder
+
+
+// Catch-all for React routing
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
+});
 
 const API_KEY = process.env.GEMINI_API_KEY || "";
 if (!API_KEY) console.warn("GEMINI_API_KEY not set in .env");
