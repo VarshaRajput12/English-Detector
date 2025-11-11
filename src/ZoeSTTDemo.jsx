@@ -6,21 +6,41 @@ export default function ZoeSTTDemo() {
   const [finalText, setFinalText] = useState("");
   const [status, setStatus] = useState("idle");
   const [englishPercent, setEnglishPercent] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
   const sttRef = useRef(null);
 
+  // STT init
   useEffect(() => {
     const stt = new ZoeSTT();
-
     stt.onPartial((t) => setPartial(t));
     stt.onFinal((t) => setFinalText((prev) => (prev ? prev + " " + t : t)));
     stt.onError?.((err) => {
       console.error("STT Error:", err);
       setStatus("error");
     });
-
     sttRef.current = stt;
+    return () => stt.stop();
+  }, []);
+
+  // responsive listener
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 720px)");
+    const update = (e) => setIsMobile(e.matches);
+    setIsMobile(mq.matches);
+    if (mq.addEventListener) mq.addEventListener("change", update);
+    else mq.addListener(update);
     return () => {
-      stt.stop();
+      if (mq.removeEventListener) mq.removeEventListener("change", update);
+      else mq.removeListener(update);
+    };
+  }, []);
+
+  // body background
+  useEffect(() => {
+    const prev = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = "#fff";
+    return () => {
+      document.body.style.backgroundColor = prev;
     };
   }, []);
 
@@ -66,79 +86,83 @@ export default function ZoeSTTDemo() {
   const stopListening = () => {
     sttRef.current.stop();
     setStatus("stopped");
-    // send current finalText for analysis
-    const transcript = finalText.trim();
-    analyzeLanguage(transcript);
+    analyzeLanguage(finalText.trim());
   };
 
-  // --- UI styles ---
-  const styles = {
-    page: {
-      // ensure full-width container and no horizontal padding so flex centering works reliably
-      width: "100%",
-      padding: "24px 0",              // vertical padding only
+  // responsive styles generator
+  const styles = (() => {
+    const page = {
+      fontFamily:
+        "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial",
+      padding: isMobile ? 16 : 24,
       display: "flex",
-      justifyContent: "center",      // centers horizontally
-      alignItems: "center",          // centers vertically
+      justifyContent: "center",
+      alignItems: "center",
       background: "#f5f7fb",
       minHeight: "100vh",
       boxSizing: "border-box",
       margin: 0,
-      marginLeft: 300,
-    },
-    card: {
-      width: "100%",            // allow card to grow to available width
-      maxWidth: 980,            // limit max width for readability
-      margin: "0 auto",         // center the card if parent layout changes
+      marginLeft: isMobile ? 0 : 400,
+    };
+
+    const card = {
+      width: isMobile ? "96vw" : "90%",
+      maxWidth: isMobile ? 720 : 980,
+      margin: "0 auto",
       background: "#fff",
-      borderRadius: 12,
-      boxShadow: "0 6px 30px rgba(18, 38, 63, 0.08)",
-      padding: 20,
+      borderRadius: isMobile ? 10 : 12,
+      boxShadow: isMobile ? "0 4px 18px rgba(18,38,63,0.06)" : "0 6px 30px rgba(18,38,63,0.08)",
+      padding: isMobile ? 14 : 20,
       boxSizing: "border-box",
-    },
-    header: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-    title: { margin: 0, fontSize: 20, fontWeight: 700, color: "#102a43" },
-    subtitle: { fontSize: 13, color: "#627d98", marginTop: 6 },
-    controls: { display: "flex", gap: 10, alignItems: "center" },
-    btn: {
-      padding: "8px 14px",
+    };
+
+    const header = { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 8, flexWrap: "wrap" };
+    const title = { margin: 0, fontSize: isMobile ? 16 : 20, fontWeight: 700, color: "#102a43" };
+    const subtitle = { fontSize: isMobile ? 12 : 13, color: "#627d98", marginTop: 6 };
+
+    const controls = { display: "flex", gap: 8, alignItems: "center" };
+    const btnBase = {
+      padding: isMobile ? "6px 10px" : "8px 14px",
       borderRadius: 8,
       border: "none",
       cursor: "pointer",
       fontWeight: 600,
-      fontSize: 14,
-    },
-    primary: {
-      background: "linear-gradient(90deg,#3b82f6,#06b6d4)",
-      color: "#fff",
-    },
-    ghost: {
-      background: "transparent",
-      border: "1px solid #dbe7f5",
-      color: "#102a43",
-    },
-    statusBadge: {
-      padding: "6px 10px",
-      borderRadius: 999,
-      fontSize: 13,
-      fontWeight: 600,
-      color: "#fff",
-    },
-    statusIdle: { background: "#9aa6b2" },
-    statusListening: { background: "#16a34a" },
-    statusAnalyzing: { background: "#f59e0b" },
-    statusError: { background: "#ef4444" },
-    grid: { display: "grid", gridTemplateColumns: "1fr 320px", gap: 16, marginTop: 16 },
-    box: { background: "#fbfdff", borderRadius: 8, padding: 12, minHeight: 120, boxSizing: "border-box" },
-    partial: { color: "#6b7280", fontStyle: "italic", minHeight: 48, overflow: "auto" },
-    finalText: { whiteSpace: "pre-wrap", color: "#0f172a", minHeight: 100, overflow: "auto" },
-    percentBox: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 },
-    circle: { width: 120, height: 120, borderRadius: 999, display: "grid", placeItems: "center", background: "#f1f5f9" },
-    progressInner: { fontSize: 22, fontWeight: 700, color: "#0f172a" },
-    progressBarWrap: { width: "100%", height: 10, background: "#e6eefb", borderRadius: 999, overflow: "hidden" },
-    progressBar: (p) => ({ width: `${p}%`, height: "100%", background: "linear-gradient(90deg,#3b82f6,#06b6d4)" }),
-    footerNote: { fontSize: 12, color: "#94a3b8", marginTop: 12 },
-  };
+      fontSize: isMobile ? 13 : 14,
+    };
+    const primary = { background: "linear-gradient(90deg,#3b82f6,#06b6d4)", color: "#fff" };
+    const ghost = { background: "transparent", border: "1px solid #dbe7f5", color: "#102a43" };
+
+    const statusBadge = { padding: "6px 10px", borderRadius: 999, fontSize: 13, fontWeight: 600, color: "#fff" };
+    const statusIdle = { background: "#9aa6b2" };
+    const statusListening = { background: "#16a34a" };
+    const statusAnalyzing = { background: "#f59e0b" };
+    const statusError = { background: "#ef4444" };
+
+    const grid = {
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "1fr 320px",
+      gap: isMobile ? 12 : 16,
+      marginTop: 12,
+    };
+
+    const box = { background: "#fbfdff", borderRadius: 8, padding: 12, minHeight: 120, boxSizing: "border-box" };
+    const partialStyle = { color: "#6b7280", fontStyle: "italic", minHeight: 48, overflow: "auto" };
+    const finalTextStyle = { whiteSpace: "pre-wrap", color: "#0f172a", minHeight: 100, overflow: "auto" };
+
+    const percentBox = { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 };
+    const circle = { width: isMobile ? 96 : 120, height: isMobile ? 96 : 120, borderRadius: 999, display: "grid", placeItems: "center", background: "#f1f5f9" };
+    const progressInner = { fontSize: isMobile ? 18 : 22, fontWeight: 700, color: "#0f172a" };
+    const progressBarWrap = { width: "100%", height: 10, background: "#e6eefb", borderRadius: 999, overflow: "hidden" };
+    const progressBar = (p) => ({ width: `${p}%`, height: "100%", background: "linear-gradient(90deg,#3b82f6,#06b6d4)" });
+
+    const footerNote = { fontSize: isMobile ? 11 : 12, color: "#94a3b8", marginTop: 12 };
+
+    return {
+      page, card, header, title, subtitle, controls, btnBase, primary, ghost, statusBadge,
+      statusIdle, statusListening, statusAnalyzing, statusError, grid, box, partialStyle,
+      finalTextStyle, percentBox, circle, progressInner, progressBarWrap, progressBar, footerNote
+    };
+  })();
 
   const statusStyle =
     status === "listening" ? { ...styles.statusBadge, ...styles.statusListening } :
@@ -152,7 +176,7 @@ export default function ZoeSTTDemo() {
     <div style={styles.page}>
       <div style={styles.card}>
         <div style={styles.header}>
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <h3 style={styles.title}>English Detector — Demo</h3>
             <div style={styles.subtitle}>Starts listening, stops, and analyzes the transcript to estimate English percentage.</div>
           </div>
@@ -163,14 +187,14 @@ export default function ZoeSTTDemo() {
               <button
                 onClick={startListening}
                 disabled={status === "listening"}
-                style={{ ...styles.btn, ...styles.primary, opacity: status === "listening" ? 0.6 : 1 }}
+                style={{ ...styles.btnBase, ...styles.primary, opacity: status === "listening" ? 0.6 : 1 }}
               >
                 Start
               </button>
               <button
                 onClick={stopListening}
                 disabled={status !== "listening"}
-                style={{ ...styles.btn, ...styles.ghost, opacity: status !== "listening" ? 0.6 : 1 }}
+                style={{ ...styles.btnBase, ...styles.ghost, opacity: status !== "listening" ? 0.6 : 1 }}
               >
                 Stop
               </button>
@@ -182,12 +206,12 @@ export default function ZoeSTTDemo() {
           <div>
             <div style={{ ...styles.box, marginBottom: 12 }}>
               <h4 style={{ margin: "0 0 8px 0" }}>Live (Partial)</h4>
-              <div style={styles.partial}>{partial || <span style={{ color: "#cbd5e1" }}>Listening...</span>}</div>
+              <div style={styles.partialStyle}>{partial || <span style={{ color: "#cbd5e1" }}>Listening...</span>}</div>
             </div>
 
             <div style={styles.box}>
               <h4 style={{ margin: "0 0 8px 0" }}>Final Transcript</h4>
-              <div style={styles.finalText}>{finalText || <span style={{ color: "#cbd5e1" }}>No transcript yet.</span>}</div>
+              <div style={styles.finalTextStyle}>{finalText || <span style={{ color: "#cbd5e1" }}>No transcript yet.</span>}</div>
             </div>
 
             <div style={styles.footerNote}>
