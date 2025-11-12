@@ -45,6 +45,13 @@ export default function ZoeSTTDemo() {
     };
   }, []);
 
+  // auto-hide analyze/error messages after a short delay
+  useEffect(() => {
+    if (!analyzeMessage) return;
+    const t = setTimeout(() => setAnalyzeMessage(""), 5000); // hide after 5s
+    return () => clearTimeout(t);
+  }, [analyzeMessage]);
+
   const analyzeLanguage = async (text) => {
     if (!text || text.trim().length === 0) {
       setEnglishPercent(0);
